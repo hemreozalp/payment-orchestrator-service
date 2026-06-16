@@ -10,6 +10,9 @@ import com.example.payment_orchestrator.model.enums.PaymentStatus;
 import com.example.payment_orchestrator.repository.MerchantRepository;
 import com.example.payment_orchestrator.repository.PaymentAttemptRepository;
 import com.example.payment_orchestrator.repository.PaymentRepository;
+import com.example.payment_orchestrator.service.provider.PaymentProvider;
+import com.example.payment_orchestrator.service.provider.PaymentProviderFactory;
+import com.example.payment_orchestrator.service.provider.ProviderResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,41 +25,45 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final PaymentMapper paymentMapper;
+    private final PaymentProviderFactory paymentProviderFactory;
 
     public PaymentService(MerchantRepository merchantRepository,
                           PaymentRepository paymentRepository,
                           PaymentAttemptRepository paymentAttemptRepository,
-                          PaymentMapper paymentMapper) {
+                          PaymentMapper paymentMapper,
+                          PaymentProviderFactory paymentProviderFactory) {
         this.merchantRepository = merchantRepository;
         this.paymentRepository = paymentRepository;
         this.paymentAttemptRepository = paymentAttemptRepository;
         this.paymentMapper = paymentMapper;
+        this.paymentProviderFactory = paymentProviderFactory;
     }
 
     @Transactional
     public Payment createPayment(PaymentRequestDto request) {
 
         Merchant merchant = merchantRepository.findById(request.merchantId())
-                .orElseThrow(() -> new RuntimeException("Merchant bulunamadı!"));
+                .orElseThrow(() -> new RuntimeException("Merchant not found!"));
 
         Payment payment = paymentMapper.toEntity(request);
         payment.setMerchant(merchant);
-
         payment = paymentRepository.save(payment);
+
+        String chosenProvider = "STRIPE";
+        PaymentProvider provider = paymentProviderFactory.getProvider(chosenProvider);
+
+        ProviderResult result = provider.processPayment(request);
 
         PaymentAttempt attempt = new PaymentAttempt();
         attempt.setPayment(payment);
-        attempt.setProviderName("STRIPE");
+        attempt.setProviderName(provider.getProviderName());
+        attempt.setStatus(result.status());
 
-        boolean isMockSuccess = request.amount().longValue() % 2 == 0;
-
-        if (isMockSuccess) {
-            attempt.setStatus(PaymentAttemptStatus.SUCCESS);
+        if (result.status() == PaymentAttemptStatus.SUCCESS) {
             payment.setStatus(PaymentStatus.SUCCESS);
         } else {
-            attempt.setStatus(PaymentAttemptStatus.FAILED);
-            attempt.setErrorCode("ERR_1001");
             payment.setStatus(PaymentStatus.FAILED);
+            attempt.setErrorCode(result.errorCode());
         }
 
         paymentAttemptRepository.save(attempt);
