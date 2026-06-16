@@ -59,7 +59,6 @@ public class PaymentService {
             payment.setStatus(PaymentStatus.FAILED);
         }
 
-        // 4. VERİ TABANI KAYITLARI
         paymentAttemptRepository.save(attempt);
         payment.setUpdatedAt(LocalDateTime.now());
         return paymentRepository.save(payment);
