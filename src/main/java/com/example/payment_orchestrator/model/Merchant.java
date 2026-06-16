@@ -4,14 +4,16 @@ import com.example.payment_orchestrator.model.enums.MerchantStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "merchants", indexes = {
-        @Index( name = "idx_merchant_api_key",
+        @Index(name = "idx_merchant_api_key",
                 columnList = "api_key",
                 unique = true)
 })
 @AllArgsConstructor
+@NoArgsConstructor
 @Data
 public class Merchant {
 

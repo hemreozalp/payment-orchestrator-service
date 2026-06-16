@@ -4,12 +4,14 @@ import com.example.payment_orchestrator.model.enums.PaymentAttemptStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment_attempts")
 @AllArgsConstructor
+@NoArgsConstructor
 @Data
 public class PaymentAttempt {
 
