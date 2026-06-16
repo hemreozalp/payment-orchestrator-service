@@ -5,6 +5,7 @@ import com.example.payment_orchestrator.model.Merchant;
 import com.example.payment_orchestrator.model.Payment;
 import com.example.payment_orchestrator.model.PaymentAttempt;
 import com.example.payment_orchestrator.model.dto.PaymentRequestDto;
+import com.example.payment_orchestrator.model.enums.Currency;
 import com.example.payment_orchestrator.model.enums.PaymentAttemptStatus;
 import com.example.payment_orchestrator.model.enums.PaymentStatus;
 import com.example.payment_orchestrator.repository.MerchantRepository;
@@ -49,7 +50,13 @@ public class PaymentService {
         payment.setMerchant(merchant);
         payment = paymentRepository.save(payment);
 
-        String chosenProvider = "STRIPE";
+        String chosenProvider;
+        if (request.currency() == Currency.TRY){
+            chosenProvider = "IYZICO";
+        } else {
+            chosenProvider = "STRIPE";
+        }
+
         PaymentProvider provider = paymentProviderFactory.getProvider(chosenProvider);
 
         ProviderResult result = provider.processPayment(request);
