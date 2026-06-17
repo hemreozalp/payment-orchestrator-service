@@ -67,8 +67,23 @@ public class PaymentService {
         }
 
         ProviderResult finalResult = null;
+        int attemptCount = 0;
 
         for (String providerName : providerOrder) {
+            attemptCount++;
+
+            if (attemptCount > 1) {
+                long waitTimeInSeconds = (long) Math.pow(2, attemptCount - 2);
+                System.out.println("Provider error detected. Waiting " + waitTimeInSeconds + " seconds... (Exponential Backoff)");
+
+                try {
+                    Thread.sleep(waitTimeInSeconds * 1000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Thread interrupted during wait period", exception);
+                }
+            }
+
             PaymentProvider provider = paymentProviderFactory.getProvider(providerName);
 
             PaymentAttempt attempt = new PaymentAttempt();
