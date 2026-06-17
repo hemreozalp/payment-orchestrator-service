@@ -12,5 +12,6 @@ public record PaymentRequestDto(
         String cardNumber,
         String expireMonth,
         String expireYear,
-        String cvv
+        String cvv,
+        String idempotencyKey
 ) {}

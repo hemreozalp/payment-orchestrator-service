@@ -45,11 +45,16 @@ public class PaymentService {
     @Transactional
     public Payment createPayment(PaymentRequestDto request) {
 
+        if (paymentRepository.existsByIdempotencyKey(request.idempotencyKey())) {
+            throw new RuntimeException("Duplicate Request Error (Idempotency Key Already Exist)");
+        }
+
         Merchant merchant = merchantRepository.findById(request.merchantId())
                 .orElseThrow(() -> new RuntimeException("Merchant not found!"));
 
         Payment payment = paymentMapper.toEntity(request);
         payment.setMerchant(merchant);
+        payment.setIdempotencyKey(request.idempotencyKey());
         payment = paymentRepository.save(payment);
 
         List<String> providerOrder = new ArrayList<>();

@@ -32,6 +32,9 @@ public class Payment {
     @Column(nullable = false, precision = 19, scale = 4)
     private Currency currency;
 
+    @Column(unique = true, nullable = false)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus status;
