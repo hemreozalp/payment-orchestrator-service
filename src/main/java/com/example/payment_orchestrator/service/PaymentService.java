@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class PaymentService {
@@ -50,30 +52,44 @@ public class PaymentService {
         payment.setMerchant(merchant);
         payment = paymentRepository.save(payment);
 
-        String chosenProvider;
+        List<String> providerOrder = new ArrayList<>();
         if (request.currency() == Currency.TRY){
-            chosenProvider = "IYZICO";
+            providerOrder.add("IYZICO");
+            providerOrder.add("STRIPE");
         } else {
-            chosenProvider = "STRIPE";
+            providerOrder.add("STRIPE");
+            providerOrder.add("IYZICO");
         }
 
-        PaymentProvider provider = paymentProviderFactory.getProvider(chosenProvider);
+        ProviderResult finalResult = null;
 
-        ProviderResult result = provider.processPayment(request);
+        for (String providerName : providerOrder) {
+            PaymentProvider provider = paymentProviderFactory.getProvider(providerName);
 
-        PaymentAttempt attempt = new PaymentAttempt();
-        attempt.setPayment(payment);
-        attempt.setProviderName(provider.getProviderName());
-        attempt.setStatus(result.status());
+            PaymentAttempt attempt = new PaymentAttempt();
+            attempt.setPayment(payment);
+            attempt.setProviderName(provider.getProviderName());
 
-        if (result.status() == PaymentAttemptStatus.SUCCESS) {
+            finalResult = provider.processPayment(request);
+            attempt.setStatus(finalResult.status());
+
+            if (finalResult.status() == PaymentAttemptStatus.FAILED) {
+                attempt.setErrorCode(finalResult.errorCode());
+            }
+
+            paymentAttemptRepository.save(attempt);
+
+            if (finalResult.status() == PaymentAttemptStatus.SUCCESS) {
+                break;
+            }
+        }
+
+        if (finalResult != null && finalResult.status() == PaymentAttemptStatus.SUCCESS) {
             payment.setStatus(PaymentStatus.SUCCESS);
         } else {
             payment.setStatus(PaymentStatus.FAILED);
-            attempt.setErrorCode(result.errorCode());
         }
 
-        paymentAttemptRepository.save(attempt);
         payment.setUpdatedAt(LocalDateTime.now());
         return paymentRepository.save(payment);
     }
