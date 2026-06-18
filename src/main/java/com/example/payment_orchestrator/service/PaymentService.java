@@ -1,9 +1,11 @@
 package com.example.payment_orchestrator.service;
 
+import com.example.payment_orchestrator.config.RabbitMqConfig;
 import com.example.payment_orchestrator.mapper.PaymentMapper;
 import com.example.payment_orchestrator.model.Merchant;
 import com.example.payment_orchestrator.model.Payment;
 import com.example.payment_orchestrator.model.PaymentAttempt;
+import com.example.payment_orchestrator.model.dto.PaymentNotification;
 import com.example.payment_orchestrator.model.dto.PaymentRequestDto;
 import com.example.payment_orchestrator.model.enums.Currency;
 import com.example.payment_orchestrator.model.enums.PaymentAttemptStatus;
@@ -14,6 +16,7 @@ import com.example.payment_orchestrator.repository.PaymentRepository;
 import com.example.payment_orchestrator.service.provider.PaymentProvider;
 import com.example.payment_orchestrator.service.provider.PaymentProviderFactory;
 import com.example.payment_orchestrator.service.provider.ProviderResult;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,17 +32,20 @@ public class PaymentService {
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentProviderFactory paymentProviderFactory;
+    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
 
     public PaymentService(MerchantRepository merchantRepository,
                           PaymentRepository paymentRepository,
                           PaymentAttemptRepository paymentAttemptRepository,
                           PaymentMapper paymentMapper,
-                          PaymentProviderFactory paymentProviderFactory) {
+                          PaymentProviderFactory paymentProviderFactory,
+                          RabbitTemplate rabbitTemplate) {
         this.merchantRepository = merchantRepository;
         this.paymentRepository = paymentRepository;
         this.paymentAttemptRepository = paymentAttemptRepository;
         this.paymentMapper = paymentMapper;
         this.paymentProviderFactory = paymentProviderFactory;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Transactional
@@ -109,6 +115,21 @@ public class PaymentService {
         } else {
             payment.setStatus(PaymentStatus.FAILED);
         }
+
+        PaymentNotification paymentNotification = new PaymentNotification(
+                payment.getId(),
+                merchant.getId(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus(),
+                finalResult != null ? finalResult.errorCode() : null
+        );
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.EXCHANGE,
+                RabbitMqConfig.ROUTING_KEY,
+                paymentNotification
+        );
 
         payment.setUpdatedAt(LocalDateTime.now());
         return paymentRepository.save(payment);
