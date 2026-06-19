@@ -147,24 +147,40 @@ public class PaymentService {
 
             if (finalResult != null && finalResult.status() == PaymentAttemptStatus.SUCCESS) {
                 payment.setStatus(PaymentStatus.SUCCESS);
+
+                PaymentNotification paymentNotification = new PaymentNotification(
+                        payment.getId(),
+                        merchant.getId(),
+                        payment.getAmount(),
+                        payment.getCurrency(),
+                        payment.getStatus(),
+                        null
+                );
+                rabbitTemplate.convertAndSend(
+                        RabbitMqConfig.EXCHANGE,
+                        RabbitMqConfig.ROUTING_KEY,
+                        paymentNotification
+                );
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
+
+                PaymentNotification compensateMessage = new PaymentNotification(
+                        payment.getId(),
+                        merchant.getId(),
+                        payment.getAmount(),
+                        payment.getCurrency(),
+                        payment.getStatus(),
+                        finalResult != null ? finalResult.errorCode() : "ALL PROVIDERS FAILED"
+                );
+
+                System.out.println("All banks failed! Saga Compensation message sending");
+
+                rabbitTemplate.convertAndSend(
+                        RabbitMqConfig.EXCHANGE,
+                        RabbitMqConfig.COMPENSATE_ROUTING_KEY,
+                        compensateMessage
+                );
             }
-
-            PaymentNotification paymentNotification = new PaymentNotification(
-                    payment.getId(),
-                    merchant.getId(),
-                    payment.getAmount(),
-                    payment.getCurrency(),
-                    payment.getStatus(),
-                    finalResult != null ? finalResult.errorCode() : null
-            );
-
-            rabbitTemplate.convertAndSend(
-                    RabbitMqConfig.EXCHANGE,
-                    RabbitMqConfig.ROUTING_KEY,
-                    paymentNotification
-            );
 
             payment.setUpdatedAt(LocalDateTime.now());
             return paymentRepository.save(payment);

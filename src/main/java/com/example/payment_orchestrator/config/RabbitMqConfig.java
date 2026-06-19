@@ -1,12 +1,9 @@
 package com.example.payment_orchestrator.config;
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +13,9 @@ public class RabbitMqConfig {
     public static final String EXCHANGE = "payment.notification.exchange";
     public static final String QUEUE = "payment.notification.queue";
     public static final String ROUTING_KEY = "payment.notification.routingKey";
+
+    public static final String COMPENSATE_ROUTING_KEY = "payment.compensate.route";
+    public static final String COMPENSATE_QUEUE = "payment.compensate.queue";
 
     @Bean
     public DirectExchange exchange() {
@@ -28,12 +28,22 @@ public class RabbitMqConfig {
     }
 
     @Bean
-    public Binding binding(Queue queue, DirectExchange exchange) {
+    public Binding binding(@Qualifier("queue") Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY);
     }
 
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new JacksonJsonMessageConverter();
+    }
+
+    @Bean
+    public Queue compensateQueue() {
+        return new Queue(COMPENSATE_QUEUE, true);
+    }
+
+    @Bean
+    public Binding compensateBinding(@Qualifier("compensateQueue") Queue compensateQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(compensateQueue).to(exchange).with(COMPENSATE_ROUTING_KEY);
     }
 }

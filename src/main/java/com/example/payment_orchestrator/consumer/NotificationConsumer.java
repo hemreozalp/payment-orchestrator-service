@@ -1,4 +1,4 @@
-package com.example.payment_orchestrator.service;
+package com.example.payment_orchestrator.consumer;
 
 import com.example.payment_orchestrator.config.RabbitMqConfig;
 import com.example.payment_orchestrator.model.dto.PaymentNotification;
