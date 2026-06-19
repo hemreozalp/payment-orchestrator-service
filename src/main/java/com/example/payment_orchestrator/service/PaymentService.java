@@ -56,7 +56,7 @@ public class PaymentService {
     public Payment createPayment(PaymentRequestDto request) {
 
         String lockKey = "lock:payment:" + request.idempotencyKey();
-        Boolean isLocked = false;
+        boolean isLocked = false;
 
         int maxAttempts = 20;
         int attempts = 0;
@@ -85,10 +85,6 @@ public class PaymentService {
         }
 
         try {
-            try {
-                System.out.println("🚀 [TEST] İlk istek kilidi aldı, 5 saniye uyutuluyor...");
-                Thread.sleep(5000);
-            } catch (InterruptedException e) { }
             if (paymentRepository.existsByIdempotencyKey(request.idempotencyKey())) {
                 return paymentRepository.findByIdempotencyKey(request.idempotencyKey())
                         .orElseThrow(() -> new RuntimeException("Payment record not found!"));
